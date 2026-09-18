@@ -1,0 +1,2 @@
+# 세 가지 템플릿 외에 빈 이슈(Blank issue)를 선택할 수 있도록 허용합니다.
+blank_issues_enabled: true
