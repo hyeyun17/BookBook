@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Plus, BookOpen } from 'lucide-react'
 import { useLibrary } from '../context/library'
-import { currentYear, completedIn } from '../utils/reading'
+import { currentYear, completedIn, indexBooks } from '../utils/reading'
 import { YearSelector } from '../components/YearSelector'
 import { Bookshelf } from '../components/Bookshelf'
 import { RecordDetails } from '../components/RecordDetails'
@@ -17,11 +17,16 @@ export function Home() {
   useEffect(() => {
     if (location.state) navigate('.', { replace: true, state: null })
   }, [location.state, navigate])
-  const completed = completedIn(records, year).sort(
-    (a, b) => +(a.completedAt || a.finishedAt!) - +(b.completedAt || b.finishedAt!),
+  const booksById = useMemo(() => indexBooks(books), [books])
+  const completed = useMemo(
+    () =>
+      completedIn(records, year).sort(
+        (a, b) => +(a.completedAt || a.finishedAt!) - +(b.completedAt || b.finishedAt!),
+      ),
+    [records, year],
   )
   const shelfRecords = completed
-  const reading = records.filter((r) => r.status === 'READING')
+  const reading = useMemo(() => records.filter((r) => r.status === 'READING'), [records])
   return (
     <div className="page home-page">
       <section className="page-heading">
@@ -69,7 +74,7 @@ export function Home() {
           {reading.length ? (
             <Link to="/reading" className="current-reading-link">
               <div>
-                <strong>{books.find((b) => b.id === reading.at(-1)?.bookId)?.title}</strong>
+                <strong>{booksById.get(reading.at(-1)?.bookId || '')?.title}</strong>
                 <p>
                   {reading.length > 1
                     ? `외 ${reading.length - 1}권과 함께하는 중`

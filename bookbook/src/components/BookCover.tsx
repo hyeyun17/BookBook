@@ -10,6 +10,7 @@ export function BookCover({ book, className = '' }: { book: Book; className?: st
           alt={`${book.title} 표지`}
           onError={() => setFailed(true)}
           loading="lazy"
+          decoding="async"
         />
       ) : (
         <div className="cover-placeholder">

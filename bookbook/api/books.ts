@@ -8,13 +8,18 @@ export default async function handler(request: IncomingMessage, response: Server
     response.end(JSON.stringify({ error: 'Method not allowed' }))
     return
   }
-  const url = new URL(request.url || '/', 'http://localhost')
-  const result = await bookSearch(
-    url.searchParams.get('query'),
-    url.searchParams.get('page'),
-    process.env.KAKAO_REST_API_KEY,
-  )
   response.setHeader('Cache-Control', 'no-store')
-  response.statusCode = result.status
-  response.end(JSON.stringify(result.body))
+  try {
+    const url = new URL(request.url || '/', 'http://localhost')
+    const result = await bookSearch(
+      url.searchParams.get('query'),
+      url.searchParams.get('page'),
+      process.env.KAKAO_REST_API_KEY,
+    )
+    response.statusCode = result.status
+    response.end(JSON.stringify(result.body))
+  } catch {
+    response.statusCode = 502
+    response.end(JSON.stringify({ error: 'Book search unavailable' }))
+  }
 }

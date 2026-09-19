@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { arrangeShelves, spineWidth } from '../utils/reading'
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { arrangeShelves, indexBooks, spineWidth } from '../utils/reading'
 import type { Book, ReadingRecord } from '../types'
 const colors = ['#526052', '#B2A58A', '#867669', '#6D7774', '#A18A72', '#C1BBA6', '#787D65']
 export function Bookshelf({
@@ -14,6 +14,7 @@ export function Bookshelf({
   onSelect: (record: ReadingRecord) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const booksById = useMemo(() => indexBooks(books), [books])
   const [width, setWidth] = useState(0)
   const scrolled = useRef<string | undefined>(undefined)
   useLayoutEffect(() => {
@@ -48,7 +49,7 @@ export function Bookshelf({
             >
               <div className="shelf-books">
                 {row.map((record) => {
-                  const book = books.find((b) => b.id === record.bookId)
+                  const book = booksById.get(record.bookId)
                   if (!book) return null
                   const hash = [...book.id].reduce((n, c) => n + c.charCodeAt(0), 0)
                   return (

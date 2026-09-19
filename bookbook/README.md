@@ -25,6 +25,7 @@ Firebase 설정이 없으면 로그인 화면에서 **로컬 미리보기**를 �
 | `VITE_FIREBASE_PROJECT_ID`  | Firebase 프로젝트 ID               |
 | `VITE_FIREBASE_APP_ID`      | Firebase 웹 앱 ID                  |
 | `KAKAO_REST_API_KEY`        | Kakao REST API 키, 서버에서만 사용 |
+| `VITE_GOOGLE_BOOKS_API_KEY` | Google Books public-data API key   |
 
 Kakao 키는 `VITE_` 접두사를 붙이면 안 됩니다. `/api/books` 서버 함수가 Kakao 요청을 대행하며 브라우저 번들에 키를 포함하지 않습니다. Vite 개발 서버에도 같은 API 핸들러를 연결했습니다. Google Books는 ISBN 공개 조회를 사용하며, 실패하거나 정보가 없으면 300페이지·미분류로 처리합니다.
 

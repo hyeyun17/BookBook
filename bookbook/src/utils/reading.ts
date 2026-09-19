@@ -1,6 +1,7 @@
 import type { Book, ReadingRecord } from '../types'
 
 export const currentYear = () => new Date().getFullYear()
+export const indexBooks = (books: Book[]) => new Map(books.map((book) => [book.id, book]))
 export function dateInput(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -17,9 +18,10 @@ export const completedIn = (records: ReadingRecord[], year: number) =>
   records.filter((r) => r.status === 'COMPLETED' && r.finishedAt?.getFullYear() === year)
 export function arrangeShelves(records: ReadingRecord[], books: Book[], width: number) {
   const rows: ReadingRecord[][] = [[]]
+  const booksById = indexBooks(books)
   let used = 0
   for (const record of records) {
-    const size = spineWidth(books.find((b) => b.id === record.bookId)?.pageCount ?? 300) + 4
+    const size = spineWidth(booksById.get(record.bookId)?.pageCount ?? 300) + 4
     if (used + size > width && rows.at(-1)!.length) {
       rows.push([])
       used = 0
@@ -33,9 +35,10 @@ export function statistics(records: ReadingRecord[], books: Book[], year: number
   const completed = completedIn(records, year)
   const months = Array<number>(12).fill(0)
   const genres: Record<string, number> = {}
+  const booksById = indexBooks(books)
   let pages = 0
   for (const record of completed) {
-    const book = books.find((b) => b.id === record.bookId)
+    const book = booksById.get(record.bookId)
     pages += book?.pageCount ?? 300
     months[record.finishedAt!.getMonth()]++
     if (book?.genre && book.genre !== '미분류') genres[book.genre] = (genres[book.genre] ?? 0) + 1
