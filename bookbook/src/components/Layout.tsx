@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom'
+import type { CSSProperties } from 'react'
 import { BookOpen, House, LibraryBig, UserRound, ArrowUpRight } from 'lucide-react'
 import { useLibrary } from '../context/library'
 const nav = [
@@ -9,6 +10,10 @@ const nav = [
 ]
 export function Layout() {
   const { preview, user, error } = useLibrary()
+  const { pathname } = useLocation()
+  const activeIndex = nav.findIndex(({ to }) =>
+    to === '/' ? pathname === '/' : pathname.startsWith(to),
+  )
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -44,6 +49,13 @@ export function Layout() {
             <span>{label}</span>
           </NavLink>
         ))}
+        {activeIndex >= 0 && (
+          <span
+            className="nav-dot"
+            style={{ '--nav-index': activeIndex } as CSSProperties}
+            aria-hidden="true"
+          />
+        )}
       </nav>
     </div>
   )
