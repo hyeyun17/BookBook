@@ -1,4 +1,12 @@
-import { collection, doc, onSnapshot, Timestamp, writeBatch, updateDoc } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  onSnapshot,
+  Timestamp,
+  writeBatch,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore'
 import { db } from './firebase'
 import type { Book, Completion, LibraryData, ReadingRecord } from '../types'
 import { validateCompletion } from '../utils/reading'
@@ -92,7 +100,7 @@ export async function saveNew(book: Book, record: ReadingRecord) {
   batch.set(doc(db, 'users', record.userId, 'records', record.id), record)
   await batch.commit()
 }
-export async function saveCompletion(record: ReadingRecord, completion: Completion) {
+export async function saveCompletion(record: ReadingRecord, completion: Completion, book?: Book) {
   const error = validateCompletion(completion.startedAt, completion.finishedAt, completion.rating)
   if (error) throw new Error(error)
   if (!db) throw new Error('Firebase 연결 설정이 필요합니다.')
@@ -103,6 +111,23 @@ export async function saveCompletion(record: ReadingRecord, completion: Completi
     completedAt: record.completedAt || new Date(),
     updatedAt: new Date(),
   }
-  await updateDoc(doc(db, 'users', record.userId, 'records', record.id), changes)
+  const recordRef = doc(db, 'users', record.userId, 'records', record.id)
+  if (book) {
+    const batch = writeBatch(db)
+    batch.update(doc(db, 'users', record.userId, 'books', record.bookId), {
+      pageCount: book.pageCount,
+      genre: book.genre || '미분류',
+    })
+    batch.update(recordRef, changes)
+    await batch.commit()
+  } else {
+    await updateDoc(recordRef, changes)
+  }
   return { ...record, ...changes }
+}
+
+export async function removeReading(record: ReadingRecord) {
+  if (!db) throw new Error('Firebase 연결 설정이 필요합니다.')
+  if (!navigator.onLine) throw new Error('인터넷 연결 후 다시 시도해 주세요.')
+  await deleteDoc(doc(db, 'users', record.userId, 'records', record.id))
 }

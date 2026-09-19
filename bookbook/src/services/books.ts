@@ -43,25 +43,58 @@ export async function searchBooks(
   if (!Array.isArray(data.documents)) throw new Error('검색 응답을 읽지 못했어요.')
   return { books: data.documents.map(normalizeBook), hasMore: page < 50 && !data.meta?.is_end }
 }
-export async function enrichBook(book: Book, signal?: AbortSignal): Promise<Book> {
-  if (!book.isbn) return book
+interface BookMetadata {
+  pageCount: number
+  genre: string
+  usedFallback: boolean
+}
+interface GoogleVolume {
+  volumeInfo?: {
+    industryIdentifiers?: { identifier: string }[]
+    pageCount?: number
+    categories?: string[]
+  }
+}
+const fallbackMetadata: BookMetadata = { pageCount: 300, genre: '미분류', usedFallback: true }
+// Cache promises as well as results so concurrent saves share one ISBN request.
+// Failures are cached for this app session too, avoiding repeated 429 requests.
+const metadataCache = new Map<string, Promise<BookMetadata>>()
+
+async function fetchMetadata(isbn: string): Promise<BookMetadata> {
   try {
-    const response = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(book.isbn)}`,
-      { signal: signal ?? AbortSignal.timeout(8000) },
-    )
-    if (!response.ok) return book
-    const data = await response.json()
-    const info = data.items?.find(
-      (item: { volumeInfo?: { industryIdentifiers?: { identifier: string }[] } }) =>
-        item.volumeInfo?.industryIdentifiers?.some((i) => i.identifier === book.isbn),
+    const key = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY?.trim()
+    if (!key) return fallbackMetadata
+    const params = new URLSearchParams({ q: `isbn:${isbn}`, key })
+    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`, {
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!response.ok) return fallbackMetadata
+    const data: { items?: GoogleVolume[] } = await response.json()
+    const info = data.items?.find((item) =>
+      item.volumeInfo?.industryIdentifiers?.some((i) => i.identifier === isbn),
     )?.volumeInfo
+    const validPages =
+      typeof info?.pageCount === 'number' && Number.isFinite(info.pageCount) && info.pageCount > 0
+    const genre = info?.categories
+      ?.find((category) => typeof category === 'string' && category.trim().length > 0)
+      ?.trim()
     return {
-      ...book,
-      pageCount: typeof info?.pageCount === 'number' && info.pageCount > 0 ? info.pageCount : 300,
-      genre: info?.categories?.[0] || '미분류',
+      pageCount: validPages ? info!.pageCount! : 300,
+      genre: genre || '미분류',
+      usedFallback: !validPages,
     }
   } catch {
-    return book
+    return fallbackMetadata
   }
+}
+
+export async function enrichBook(book: Book): Promise<Book & { usedFallback: boolean }> {
+  const isbn = book.isbn.trim()
+  if (!isbn) return { ...book, ...fallbackMetadata }
+  let metadata = metadataCache.get(isbn)
+  if (!metadata) {
+    metadata = fetchMetadata(isbn)
+    metadataCache.set(isbn, metadata)
+  }
+  return { ...book, ...(await metadata) }
 }

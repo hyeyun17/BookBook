@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowUpRight, Search as SearchIcon, BookOpen } from 'lucide-react'
-import { searchBooks, enrichBook } from '../services/books'
+import { searchBooks } from '../services/books'
 import { useLibrary } from '../context/library'
 import { BookCover } from '../components/BookCover'
 import { Modal } from '../components/Modal'
@@ -17,15 +17,12 @@ export function Search() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Book | null>(null)
-  const [enriching, setEnriching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [modalError, setModalError] = useState('')
   const controller = useRef<AbortController | null>(null)
-  const selection = useRef(0)
   useEffect(
     () => () => {
       controller.current?.abort()
-      selection.current++
     },
     [],
   )
@@ -55,15 +52,21 @@ export function Search() {
       if (!active.signal.aborted) setLoading(false)
     }
   }
-  async function select(book: Book) {
-    const request = ++selection.current
+  function select(book: Book) {
     setSelected(book)
-    setEnriching(true)
     setModalError('')
-    const enriched = await enrichBook(book)
-    if (request === selection.current) {
-      setSelected(enriched)
-      setEnriching(false)
+  }
+  async function addSelected(completeNow = false) {
+    if (!selected || saving) return
+    setSaving(true)
+    setModalError('')
+    try {
+      const record = await startReading(selected)
+      if (completeNow) navigate(`/record/${record.id}`)
+      else navigate('/reading', { state: { newId: record.id } })
+    } catch {
+      setModalError('책을 추가하지 못했어요. 연결을 확인하고 다시 시도해 주세요.')
+      setSaving(false)
     }
   }
   return (
@@ -150,7 +153,6 @@ export function Search() {
           title={selected.title}
           onClose={() => {
             if (!saving) {
-              selection.current++
               setSelected(null)
             }
           }}
@@ -163,27 +165,20 @@ export function Search() {
             <small>{selected.publisher}</small>
             {selected.genre !== '미분류' && <span className="tag">{selected.genre}</span>}
           </div>
-          {enriching && (
-            <p className="muted" role="status">
-              책 정보를 확인하고 있어요…
-            </p>
-          )}
           <button
             className="primary-button full-width"
-            disabled={saving || enriching}
-            onClick={async () => {
-              setSaving(true)
-              try {
-                const record = await startReading(selected)
-                navigate('/reading', { state: { newId: record.id } })
-              } catch {
-                setModalError('책을 추가하지 못했어요. 연결을 확인하고 다시 시도해 주세요.')
-                setSaving(false)
-              }
-            }}
+            disabled={saving}
+            onClick={() => void addSelected()}
           >
             {saving ? '추가 중…' : '책 읽기'}
             <ArrowUpRight size={18} />
+          </button>
+          <button
+            className="primary-button record-now-button full-width"
+            disabled={saving}
+            onClick={() => void addSelected(true)}
+          >
+            바로 기록하기 <ArrowUpRight size={18} />
           </button>
           {modalError && (
             <p className="error" role="alert">
