@@ -8,7 +8,7 @@ import { useLibrary } from '../context/library'
 import { formatDate } from '../utils/reading'
 import type { ReadingRecord } from '../types'
 export function RecordDetails({ record, onClose }: { record: ReadingRecord; onClose: () => void }) {
-  const { books, startReading } = useLibrary()
+  const { books, startReading, stopReading, deleteRecord } = useLibrary()
   const book = books.find((b) => b.id === record.bookId)
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
@@ -16,7 +16,12 @@ export function RecordDetails({ record, onClose }: { record: ReadingRecord; onCl
   if (!book) return null
   const completed = record.status === 'COMPLETED'
   return (
-    <Modal title={book.title} onClose={onClose}>
+    <Modal
+      title={book.title}
+      onClose={() => {
+        if (!busy) onClose()
+      }}
+    >
       <div className="detail-heading">
         <BookCover book={book} />
         <span className="eyebrow">{completed ? 'FINISHED READING' : 'CURRENTLY READING'}</span>
@@ -77,14 +82,55 @@ export function RecordDetails({ record, onClose }: { record: ReadingRecord; onCl
               <ArrowUpRight size={17} />
             </button>
           </div>
+          <button
+            className="text-button delete-record-button"
+            disabled={busy}
+            onClick={async () => {
+              if (busy) return
+              setBusy(true)
+              setError('')
+              try {
+                await deleteRecord(record)
+                onClose()
+              } catch {
+                setError(
+                  '\uAE30\uB85D\uC744 \uC0AD\uC81C\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC5F0\uACB0\uC744 \uD655\uC778\uD558\uACE0 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.',
+                )
+                setBusy(false)
+              }
+            }}
+          >
+            {busy ? '\uCC98\uB9AC \uC911?' : '\uC0AD\uC81C\uD560\uB798\uC694'}
+          </button>
         </>
       ) : (
-        <button
-          className="primary-button full-width"
-          onClick={() => navigate(`/record/${record.id}`)}
-        >
-          다 읽었어요 <ArrowUpRight size={18} />
-        </button>
+        <>
+          <button
+            className="primary-button full-width"
+            disabled={busy}
+            onClick={() => navigate(`/record/${record.id}`)}
+          >
+            다 읽었어요 <ArrowUpRight size={18} />
+          </button>
+          <button
+            className="text-button stop-reading-button"
+            disabled={busy}
+            onClick={async () => {
+              if (busy) return
+              setBusy(true)
+              setError('')
+              try {
+                await stopReading(record)
+                onClose()
+              } catch {
+                setError('기록을 제거하지 못했어요. 연결을 확인하고 다시 시도해 주세요.')
+                setBusy(false)
+              }
+            }}
+          >
+            {busy ? '처리 중…' : '그만 읽을래요'}
+          </button>
+        </>
       )}
       {error && (
         <p role="alert" className="error">

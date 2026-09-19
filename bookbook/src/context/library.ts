@@ -8,6 +8,8 @@ export interface LibraryContextValue extends LibraryData {
   startPreview: () => void
   signOut: () => Promise<void>
   startReading: (book: Book) => Promise<ReadingRecord>
+  stopReading: (record: ReadingRecord) => Promise<void>
+  deleteRecord: (record: ReadingRecord) => Promise<void>
   complete: (record: ReadingRecord, values: Completion) => Promise<void>
 }
 export const LibraryContext = createContext<LibraryContextValue | null>(null)

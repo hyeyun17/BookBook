@@ -23,6 +23,8 @@ service cloud.firestore {
       allow create: if owner(uid) && validRecord(uid)
         && request.resource.data.id == recordId && request.resource.data.status == 'READING'
         && existsAfter(/databases/$(database)/documents/users/$(uid)/books/$(request.resource.data.bookId));
+      allow delete: if owner(uid) && resource.data.userId == uid
+        && (resource.data.status == 'READING' || resource.data.status == 'COMPLETED');
       allow update: if owner(uid) && validRecord(uid)
         && request.resource.data.id == resource.data.id
         && request.resource.data.bookId == resource.data.bookId

@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
+import { enrichBook } from '../services/books'
 import { auth, logout } from '../services/firebase'
 import {
   emptyLibrary,
   newRecord,
   readLocal,
+  removeReading,
   saveCompletion,
   saveNew,
   subscribeLibrary,
@@ -105,10 +107,40 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           }
           return record
         },
+        stopReading: async (record) => {
+          if (!user || record.userId !== user.uid || record.status !== 'READING')
+            throw new Error('이 기록을 제거할 수 없어요.')
+          if (preview) {
+            localUpdate({ ...data, records: data.records.filter((r) => r.id !== record.id) })
+          } else {
+            await removeReading(record)
+            setData((previous) => ({
+              ...previous,
+              records: previous.records.filter((r) => r.id !== record.id),
+            }))
+          }
+        },
+        deleteRecord: async (record) => {
+          if (!user || record.userId !== user.uid)
+            throw new Error('\uCC45 \uC815\uBCF4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC5B4\uC694.')
+          if (preview) {
+            localUpdate({ ...data, records: data.records.filter((r) => r.id !== record.id) })
+          } else {
+            await removeReading(record)
+            setData((previous) => ({
+              ...previous,
+              records: previous.records.filter((r) => r.id !== record.id),
+            }))
+          }
+        },
         complete: async (record, values) => {
-          if (!user || record.userId !== user.uid) throw new Error('이 기록을 수정할 수 없어요.')
+          if (!user || record.userId !== user.uid)
+            throw new Error('\uCC45 \uC815\uBCF4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC5B4\uC694.')
           const invalid = validateCompletion(values.startedAt, values.finishedAt, values.rating)
           if (invalid) throw new Error(invalid)
+          const book = data.books.find((b) => b.id === record.bookId)
+          if (!book) throw new Error('책 정보를 찾을 수 없어요.')
+          const { usedFallback, ...enriched } = await enrichBook(book)
           const updated = {
             ...record,
             ...values,
@@ -119,14 +151,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           if (preview)
             localUpdate({
               ...data,
+              books: data.books.map((b) => (b.id === enriched.id ? enriched : b)),
               records: data.records.map((r) => (r.id === record.id ? updated : r)),
             })
           else {
-            const saved = await saveCompletion(record, values)
+            const saved = await saveCompletion(record, values, enriched)
             setData((previous) => ({
               ...previous,
+              books: previous.books.map((b) => (b.id === enriched.id ? enriched : b)),
               records: previous.records.map((r) => (r.id === record.id ? saved : r)),
             }))
+          }
+          if (import.meta.env.DEV) {
+            const { title, isbn, pageCount } = enriched
+            console.info('[BookBook] 책 페이지 수', { title, isbn, pageCount, usedFallback })
           }
         },
       }}

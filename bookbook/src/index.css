@@ -881,7 +881,7 @@ svg {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 44px;
+  gap: 12px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -898,8 +898,8 @@ svg {
   transition:
     opacity 0.3s,
     transform 0.3s;
-  opacity: 0.45;
-  transform: scale(0.88);
+  opacity: 0.72;
+  transform: scale(0.94);
   text-align: center;
   padding: 0;
 }
@@ -1646,11 +1646,11 @@ svg {
   }
   .reading-carousel {
     margin: 0 -22px;
-    padding: 15px calc(50% - 108px) 10px;
-    gap: 26px;
+    padding: 15px calc(50% - 78px) 10px;
+    gap: 10px;
   }
   .reading-card {
-    flex-basis: 260px;
+    flex-basis: 200px;
   }
   .reading-card > .book-cover {
     width: 185px;
@@ -1853,4 +1853,32 @@ svg {
 .pwa-notice button {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+.record-now-button {
+  margin-top: 10px;
+  background: transparent;
+  border-color: #b8a99b;
+  color: #6f5949;
+}
+.record-now-button:hover:not(:disabled) {
+  background: #f0ebe4;
+  border-color: #9f8c7b;
+}
+.stop-reading-button {
+  display: flex;
+  margin: 16px auto 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.delete-record-button {
+  display: flex;
+  margin: 15px auto 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

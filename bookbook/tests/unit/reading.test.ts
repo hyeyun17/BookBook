@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest'
 import {
   arrangeShelves,
   completedIn,
@@ -8,7 +8,7 @@ import {
   statistics,
   validateCompletion,
 } from '../../src/utils/reading'
-import { normalizeBook, enrichBook } from '../../src/services/books'
+import { normalizeBook, searchBooks } from '../../src/services/books'
 import { bookSearch } from '../../server/book-search'
 import type { Book, ReadingRecord } from '../../src/types'
 const book: Book = {
@@ -34,6 +34,7 @@ const record = (id: string, finishedAt: Date): ReadingRecord => ({
 })
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   vi.useRealTimers()
 })
 describe('reading calculations', () => {
@@ -80,6 +81,60 @@ describe('reading calculations', () => {
   })
 })
 describe('book API boundaries', () => {
+  let enrichBook: typeof import('../../src/services/books').enrichBook
+  beforeEach(async () => {
+    vi.stubEnv('VITE_GOOGLE_BOOKS_API_KEY', 'test-books-key')
+    vi.resetModules()
+    ;({ enrichBook } = await import('../../src/services/books'))
+  })
+  it('passes the configured key and selected ISBN to Google Books', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ items: [] }) })
+    vi.stubGlobal('fetch', fetch)
+    await enrichBook(book)
+    const url = new URL(fetch.mock.calls[0][0])
+    expect(url.searchParams.get('key')).toBe('test-books-key')
+    expect(url.searchParams.get('q')).toBe(`isbn:${book.isbn}`)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('uses fallback without an anonymous request when the key is missing', async () => {
+    vi.stubEnv('VITE_GOOGLE_BOOKS_API_KEY', '')
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    expect(await enrichBook(book)).toMatchObject({ pageCount: 300, usedFallback: true })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('searches using only the Kakao proxy', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        documents: [{ isbn: book.isbn }, { isbn: '9780000000002' }],
+        meta: { is_end: true },
+      }),
+    })
+    vi.stubGlobal('fetch', fetch)
+    expect((await searchBooks('test', 1)).books).toHaveLength(2)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch.mock.calls[0][0]).toBe('/api/books?query=test&page=1')
+  })
+  it('caches concurrent and repeated requests, including rate limits', async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: false, status: 429 })
+    vi.stubGlobal('fetch', fetch)
+    const results = await Promise.all([enrichBook(book), enrichBook(book)])
+    await enrichBook(book)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(results[0]).toMatchObject({ pageCount: 300, genre: '미분류', usedFallback: true })
+  })
+  it('skips Google for missing ISBNs and resets old metadata', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    expect(await enrichBook({ ...book, isbn: '', pageCount: 900 })).toMatchObject({
+      pageCount: 300,
+      genre: '미분류',
+      usedFallback: true,
+    })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('prefers ISBN13 and provides missing-field defaults', () => {
     expect(normalizeBook({ isbn: '8937460440 9788937460449' })).toMatchObject({
       id: '9788937460449',
@@ -90,7 +145,11 @@ describe('book API boundaries', () => {
   })
   it('keeps safe defaults when Google Books fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-    expect(await enrichBook(book)).toEqual(book)
+    expect(await enrichBook(book)).toMatchObject({
+      pageCount: 300,
+      genre: '미분류',
+      usedFallback: true,
+    })
   })
   it('does not use metadata from a different ISBN', async () => {
     vi.stubGlobal(
@@ -126,7 +185,13 @@ describe('book API boundaries', () => {
         }),
       }),
     )
-    expect(await enrichBook(book)).toMatchObject({ pageCount: 240, genre: 'Literature' })
+    expect(await enrichBook(book)).toMatchObject({
+      pageCount: 240,
+      genre: 'Literature',
+      usedFallback: false,
+    })
+    await enrichBook(book)
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
   it('rejects invalid server requests and missing credentials', async () => {
     expect((await bookSearch('', 1, 'key')).status).toBe(400)
