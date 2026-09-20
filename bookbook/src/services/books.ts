@@ -1,100 +1,86 @@
 import type { Book } from '../types'
 
-interface KakaoBook {
-  isbn?: string
+export interface Yes24Book {
+  isbn10?: string
+  isbn13?: string
+  itemId?: number
   title?: string
-  authors?: string[]
+  author?: string
   publisher?: string
-  thumbnail?: string
-  url?: string
+  cover?: string
+  pages?: number | null
+  categoryName?: string | null
+  category?: string | null
+  categoryPath?: string | null
+  goodsSortNm?: string | null
 }
-export function normalizeBook(raw: KakaoBook): Book {
-  const isbns = (raw.isbn ?? '').split(/\s+/).filter(Boolean)
-  const isbn = isbns.find((i) => i.length === 13) ?? isbns[0] ?? ''
-  const fallbackId = encodeURIComponent(
-    raw.url || `${raw.title}-${raw.authors?.join(',')}`,
-  ).replaceAll('.', '_')
+const FALLBACK_PAGE_COUNT = 300
+const FALLBACK_GENRE = '\uBBF8\uBD84\uB958'
+interface BookMetadata { pageCount: number; genre: string; usedFallback: boolean }
+interface DetailResponse { book?: (Book & { usedFallback?: boolean }) | null }
+
+export function normalizeBook(raw: Yes24Book): Book {
+  const isbn = (raw.isbn13 || raw.isbn10 || '').trim()
+  const title = raw.title?.trim() || 'Untitled'
+  const authors = raw.author?.split(/[,;|]/).map((author) => author.trim()).filter(Boolean)
+  const validPages = typeof raw.pages === 'number' && Number.isFinite(raw.pages) && raw.pages > 0
+  const category = raw.categoryName || raw.category || raw.categoryPath || raw.goodsSortNm
   return {
-    id: isbn || fallbackId,
+    id: isbn || String(raw.itemId || encodeURIComponent(`${title}-${raw.author || ''}`)),
     isbn,
-    title: raw.title || '제목 없음',
-    authors: raw.authors?.length ? raw.authors : ['저자 정보 없음'],
-    publisher: raw.publisher || '출판사 정보 없음',
-    thumbnail: raw.thumbnail?.replace(/^http:/, 'https:') || '',
-    pageCount: 300,
-    genre: '미분류',
+    title,
+    authors: authors?.length ? authors : ['Unknown author'],
+    publisher: raw.publisher?.trim() || 'Unknown publisher',
+    thumbnail: raw.cover?.replace(/^http:/, 'https:') || '',
+    pageCount: validPages ? raw.pages! : FALLBACK_PAGE_COUNT,
+    genre: category?.trim() || FALLBACK_GENRE,
   }
 }
-export async function searchBooks(
-  query: string,
-  page: number,
-  signal?: AbortSignal,
-): Promise<{ books: Book[]; hasMore: boolean }> {
-  const response = await fetch(`/api/books?query=${encodeURIComponent(query)}&page=${page}`, {
-    signal,
-  })
+export async function searchBooks(query: string, page: number, signal?: AbortSignal): Promise<{ books: Book[]; hasMore: boolean }> {
+  const response = await fetch(`/api/books?query=${encodeURIComponent(query)}&page=${page}`, { signal })
   if (!response.ok) {
-    if (response.status === 503)
-      throw new Error('책 검색 연결이 아직 준비되지 않았어요. Kakao API 환경변수를 설정해 주세요.')
-    if (response.status === 429) throw new Error('검색 요청이 많아요. 잠시 후 다시 시도해 주세요.')
-    throw new Error('책을 검색하지 못했어요. 잠시 후 다시 시도해 주세요.')
+    if (response.status === 503) throw new Error('YES24 API is not configured.')
+    if (response.status === 429) throw new Error('Too many requests. Please try again shortly.')
+    throw new Error('Unable to search books. Please try again.')
   }
-  const data = await response.json()
-  if (!Array.isArray(data.documents)) throw new Error('검색 응답을 읽지 못했어요.')
-  return { books: data.documents.map(normalizeBook), hasMore: page < 50 && !data.meta?.is_end }
+  const data = (await response.json()) as { books?: Book[]; hasMore?: boolean }
+  if (!Array.isArray(data.books)) throw new Error('Invalid book search response.')
+  return { books: data.books, hasMore: Boolean(data.hasMore) }
 }
-interface BookMetadata {
-  pageCount: number
-  genre: string
-  usedFallback: boolean
-}
-interface GoogleVolume {
-  volumeInfo?: {
-    industryIdentifiers?: { identifier: string }[]
-    pageCount?: number
-    categories?: string[]
-  }
-}
-const fallbackMetadata: BookMetadata = { pageCount: 300, genre: '미분류', usedFallback: true }
-// Cache promises as well as results so concurrent saves share one ISBN request.
-// Failures are cached for this app session too, avoiding repeated 429 requests.
 const metadataCache = new Map<string, Promise<BookMetadata>>()
-
-async function fetchMetadata(isbn: string): Promise<BookMetadata> {
+const storageKey = (isbn: string) => `bookbook-yes24-metadata-${isbn}`
+function fallbackMetadata(): BookMetadata { return { pageCount: FALLBACK_PAGE_COUNT, genre: FALLBACK_GENRE, usedFallback: true } }
+function readStoredMetadata(isbn: string): BookMetadata | null {
   try {
-    const key = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY?.trim()
-    if (!key) return fallbackMetadata
-    const params = new URLSearchParams({ q: `isbn:${isbn}`, key })
-    const response = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!response.ok) return fallbackMetadata
-    const data: { items?: GoogleVolume[] } = await response.json()
-    const info = data.items?.find((item) =>
-      item.volumeInfo?.industryIdentifiers?.some((i) => i.identifier === isbn),
-    )?.volumeInfo
-    const validPages =
-      typeof info?.pageCount === 'number' && Number.isFinite(info.pageCount) && info.pageCount > 0
-    const genre = info?.categories
-      ?.find((category) => typeof category === 'string' && category.trim().length > 0)
-      ?.trim()
-    return {
-      pageCount: validPages ? info!.pageCount! : 300,
-      genre: genre || '미분류',
-      usedFallback: !validPages,
-    }
+    const value = JSON.parse(sessionStorage.getItem(storageKey(isbn)) || 'null') as BookMetadata | null
+    return value && Number.isFinite(value.pageCount) && typeof value.genre === 'string' ? value : null
+  } catch { return null }
+}
+function storeMetadata(isbn: string, metadata: BookMetadata) {
+  try { sessionStorage.setItem(storageKey(isbn), JSON.stringify(metadata)) } catch { /* storage is optional */ }
+}
+async function fetchMetadata(isbn: string): Promise<BookMetadata> {
+  const stored = readStoredMetadata(isbn)
+  if (stored) return stored
+  try {
+    const response = await fetch(`/api/books?isbn=${encodeURIComponent(isbn)}`, { signal: AbortSignal.timeout(10000) })
+    if (!response.ok) { const metadata = fallbackMetadata(); storeMetadata(isbn, metadata); return metadata }
+    const detail = ((await response.json()) as DetailResponse).book
+    const validPages = typeof detail?.pageCount === 'number' && Number.isFinite(detail.pageCount) && detail.pageCount > 0
+    const metadata = { pageCount: validPages ? detail!.pageCount : FALLBACK_PAGE_COUNT, genre: detail?.genre?.trim() || FALLBACK_GENRE, usedFallback: Boolean(detail?.usedFallback) || !validPages }
+    storeMetadata(isbn, metadata)
+    return metadata
   } catch {
-    return fallbackMetadata
+    const metadata = fallbackMetadata()
+    storeMetadata(isbn, metadata)
+    return metadata
   }
 }
-
 export async function enrichBook(book: Book): Promise<Book & { usedFallback: boolean }> {
   const isbn = book.isbn.trim()
-  if (!isbn) return { ...book, ...fallbackMetadata }
+  if (!isbn) return { ...book, ...fallbackMetadata() }
   let metadata = metadataCache.get(isbn)
-  if (!metadata) {
-    metadata = fetchMetadata(isbn)
-    metadataCache.set(isbn, metadata)
-  }
+  if (!metadata) { metadata = fetchMetadata(isbn); metadataCache.set(isbn, metadata) }
   return { ...book, ...(await metadata) }
 }
+\r\n

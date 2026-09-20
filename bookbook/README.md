@@ -12,7 +12,7 @@ Copy-Item .env.example .env.local
 npm.cmd run dev
 ```
 
-Firebase 설정이 없으면 로그인 화면에서 **로컬 미리보기**를 선택할 수 있습니다. 이 모드는 Google 로그인이나 클라우드 저장을 흉내 내지 않으며, 별도 localStorage에만 기록을 저장합니다. 샘플 책이나 독서 기록은 자동으로 생성하지 않습니다. 검색은 이 모드에서도 실제 Kakao 서버 키가 필요합니다.
+Firebase 설정이 없으면 로그인 화면에서 **로컬 미리보기**를 선택할 수 있습니다. 이 모드는 Google 로그인이나 클라우드 저장을 흉내 내지 않으며, 별도 localStorage에만 기록을 저장합니다. 샘플 책이나 독서 기록은 자동으로 생성하지 않습니다. 검색은 이 모드에서도 실제 YES24 서버 키가 필요합니다.
 
 ## 환경변수
 
@@ -24,9 +24,9 @@ Firebase 설정이 없으면 로그인 화면에서 **로컬 미리보기**를 �
 | `VITE_FIREBASE_AUTH_DOMAIN` | Firebase 인증 도메인               |
 | `VITE_FIREBASE_PROJECT_ID`  | Firebase 프로젝트 ID               |
 | `VITE_FIREBASE_APP_ID`      | Firebase 웹 앱 ID                  |
-| `KAKAO_REST_API_KEY`        | Kakao REST API 키, 서버에서만 사용 |
+| `YES24_API_KEY`             | YES24 Open API 키, 서버에서만 사용 |
 
-Kakao 키는 `VITE_` 접두사를 붙이면 안 됩니다. `/api/books` 서버 함수가 Kakao 요청을 대행하며 브라우저 번들에 키를 포함하지 않습니다. Vite 개발 서버에도 같은 API 핸들러를 연결했습니다. Google Books는 ISBN 공개 조회를 사용하며, 실패하거나 정보가 없으면 300페이지·미분류로 처리합니다.
+YES24 키는 `VITE_` 접두사를 붙이면 안 됩니다. `/api/books` 서버 함수가 YES24 요청을 대행하며 브라우저 번들에 키를 포함하지 않습니다. 검색 결과는 5분, ISBN 상세 정보는 24시간 서버와 세션 캐시에 저장하고, 서버 요청 간격을 조절해 YES24의 초당 10회 한도를 넘지 않도록 합니다. 상세 정보가 없으면 300페이지·미분류로 처리합니다.
 
 ## Firebase 연결
 
@@ -63,12 +63,12 @@ src/
   pages/          Home, Search, Reading, Complete, Library, MyPage, Login
   components/     책장, 책 표지, 모달, 평점, 연도 선택, 내비게이션, PWA 상태
   context/        인증 및 사용자별 독서 데이터 상태
-  services/       Firebase, Firestore, Kakao 검색, Google Books 보완
+  services/       Firebase, Firestore, YES24 검색·상세
   types/          Book, ReadingRecord, User, Completion
   utils/          날짜, 책등 너비, 선반 배치, 통계, 입력 검증
   index.css       전역 컬러 토큰과 반응형 UI
 api/books.ts      Vercel API 진입점
-server/           로컬 개발/Vercel 공용 Kakao 핸들러
+server/           로컬 개발/Vercel 공용 YES24 핸들러
 public/           PWA 아이콘
 firestore.rules   사용자별 데이터 접근 및 기록 검증
 ```
@@ -85,7 +85,7 @@ firestore.rules   사용자별 데이터 접근 및 기록 검증
 - ResizeObserver로 실제 너비를 측정하고 선반을 추가합니다. 새 선반의 등장 후 책 삽입을 지연 실행합니다.
 - 읽는 중 화면은 CSS scroll-snap 기반으로 터치 스와이프와 이전/다음 버튼을 지원합니다.
 - 라이브러리는 완독 기록 기준이며 재독도 별도 기록으로 표시합니다. 모바일에서는 3열입니다.
-- 장르 통계는 Google Books categories의 첫 항목을 대표 장르로 사용하고 미분류를 제외합니다.
+- 장르 통계는 YES24 응답의 카테고리를 대표 장르로 사용하고 미분류를 제외합니다.
 - PWA는 앱 파일만 캐시합니다. 검색 결과·인증 응답·사용자 기록을 서비스 워커에 캐시하지 않습니다. 클라우드 오프라인 편집은 MVP 범위에 포함하지 않습니다.
 - PWA 새 버전은 사용자에게 업데이트 버튼을 보여주어 작성 중인 폼을 강제로 새로고침하지 않습니다.
 
@@ -101,14 +101,14 @@ npm.cmd run format
 
 Playwright 테스트는 로컬 Chrome을 사용하며, 없다면 `npx playwright install chrome`으로 설치합니다. 테스트의 외부 API 응답은 명시적인 fixture로 대체하고, 실제 기록 흐름·브라우저 저장·모바일 레이아웃을 검증합니다. 단위 테스트는 페이지 수 기본값, ISBN 매칭, 연속적인 책등 너비, 자동 선반 배치, 연도·장르 통계, 날짜·별점 검증, 서버 API 오류 처리를 검증합니다.
 
-실서비스 최종 확인은 Firebase/Kakao 환경변수 설정 후 Google 로그인, 실 검색, 사용자별 데이터 격리, 실제 기기 PWA 설치, Vercel 배포 URL에서 직접 수행해야 합니다.
+실서비스 최종 확인은 Firebase/YES24 환경변수 설정 후 Google 로그인, 실 검색, 사용자별 데이터 격리, 실제 기기 PWA 설치, Vercel 배포 URL에서 직접 수행해야 합니다.
 
 ## 공식 참고 문서
 
 - [Firebase Google 로그인](https://firebase.google.com/docs/auth/web/google-signin)
 - [Firestore Security Rules](https://firebase.google.com/docs/rules/basics)
-- [Kakao 책 검색](https://developers.kakao.com/docs/ko/daum-search/dev-guide)
-- [Google Books API](https://developers.google.com/books/docs/v1/using)
+- [YES24 Open API](https://developers.yes24.com/docs)
+- [YES24 API 상품 상세](https://developers.yes24.com/api-doc/goods-item-detail)
 - [Vite PWA](https://vite-pwa-org.netlify.app/guide/)
 - [Vercel Node Functions](https://vercel.com/docs/functions/runtimes/node-js)
 

@@ -1,12 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Plus, BookOpen } from 'lucide-react'
 import { useLibrary } from '../context/library'
-import { currentYear, completedIn } from '../utils/reading'
+import { currentYear, completedIn, indexBooks } from '../utils/reading'
 import { YearSelector } from '../components/YearSelector'
 import { Bookshelf } from '../components/Bookshelf'
 import { RecordDetails } from '../components/RecordDetails'
 import type { ReadingRecord } from '../types'
+const readingNotes = [
+  '어떤 책은 답보다 좋은 질문을 남긴다.',
+  '한 페이지의 집중이 하루의 방향을 바꾼다.',
+  '천천히 읽은 문장은 오래 마음에 머문다.',
+  '책장을 넘기는 일은 나를 만나는 일이다.',
+  '오늘의 한 문장이 내일의 나를 만든다.',
+  '읽는 사람의 시간은 조용히 깊어진다.',
+  '좋은 책은 다 읽은 뒤에도 계속된다.',
+  '한 권의 책에는 아직 만나지 못한 내가 있다.',
+  '마음이 머문 문장은 쉽게 사라지지 않는다.',
+  '읽기는 세상을 넓히고 나를 단단하게 한다.',
+  '한 줄을 읽어도 충분히 멀리 갈 수 있다.',
+  '책과 함께한 시간은 사라지지 않는다.',
+  '가끔은 책이 나보다 먼저 나를 알아본다.',
+  '읽는 속도보다 마음에 남는 깊이가 중요하다.',
+  '오늘 펼친 책이 새로운 계절을 연다.',
+  '문장 하나가 마음의 작은 불빛이 된다.',
+  '책은 혼자 있는 시간을 다정하게 만든다.',
+  '읽고 멈추는 순간 생각이 자란다.',
+  '좋은 이야기는 삶을 보는 눈을 바꼼다.',
+  '한 권씩 쌓인 시간이 결국 나의 이야기가 된다.',
+]
 export function Home() {
   const { records, books, user } = useLibrary()
   const location = useLocation()
@@ -14,14 +36,22 @@ export function Home() {
   const [arrival] = useState<{ newId?: string; year?: number }>(location.state || {})
   const [year, setYear] = useState(arrival.year || currentYear())
   const [selected, setSelected] = useState<ReadingRecord | null>(null)
+  const [readingNote] = useState(
+    () => readingNotes[Math.floor(Math.random() * readingNotes.length)],
+  )
   useEffect(() => {
     if (location.state) navigate('.', { replace: true, state: null })
   }, [location.state, navigate])
-  const completed = completedIn(records, year).sort(
-    (a, b) => +(a.completedAt || a.finishedAt!) - +(b.completedAt || b.finishedAt!),
+  const booksById = useMemo(() => indexBooks(books), [books])
+  const completed = useMemo(
+    () =>
+      completedIn(records, year).sort(
+        (a, b) => +(a.completedAt || a.finishedAt!) - +(b.completedAt || b.finishedAt!),
+      ),
+    [records, year],
   )
   const shelfRecords = completed
-  const reading = records.filter((r) => r.status === 'READING')
+  const reading = useMemo(() => records.filter((r) => r.status === 'READING'), [records])
   return (
     <div className="page home-page">
       <section className="page-heading">
@@ -69,7 +99,7 @@ export function Home() {
           {reading.length ? (
             <Link to="/reading" className="current-reading-link">
               <div>
-                <strong>{books.find((b) => b.id === reading.at(-1)?.bookId)?.title}</strong>
+                <strong>{booksById.get(reading.at(-1)?.bookId || '')?.title}</strong>
                 <p>
                   {reading.length > 1
                     ? `외 ${reading.length - 1}권과 함께하는 중`
@@ -91,8 +121,12 @@ export function Home() {
         <div className="reading-note">
           <span className="eyebrow">A SMALL NOTE</span>
           <p>
-            어떤 책은 읽고 나서야
-            <br />내 안에 있던 문장이 된다.
+            {readingNote.split('\n').map((line, index) => (
+              <span key={line}>
+                {index > 0 && <br />}
+                {line}
+              </span>
+            ))}
           </p>
           <small>{user?.displayName}님의 다음 한 권을 기다리며</small>
         </div>

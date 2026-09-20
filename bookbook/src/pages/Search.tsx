@@ -42,7 +42,12 @@ export function Search() {
       setBooks((previous) =>
         nextPage === 1
           ? result.books
-          : [...previous, ...result.books.filter((b) => !previous.some((p) => p.id === b.id))],
+          : [
+              ...previous,
+              ...result.books.filter(
+                (book) => !new Set(previous.map((item) => item.id)).has(book.id),
+              ),
+            ],
       )
       setHasMore(result.hasMore)
       setPage(nextPage)

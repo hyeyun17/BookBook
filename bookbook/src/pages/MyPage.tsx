@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { LogOut, BookOpen, Files, Star, ArrowUpRight } from 'lucide-react'
 import { useLibrary } from '../context/library'
 import { currentYear, statistics } from '../utils/reading'
@@ -7,7 +7,7 @@ export function MyPage() {
   const { records, books, user, signOut, preview } = useLibrary()
   const [year, setYear] = useState(currentYear())
   const [error, setError] = useState('')
-  const stats = statistics(records, books, year)
+  const stats = useMemo(() => statistics(records, books, year), [books, records, year])
   const genreTotal = stats.genres.reduce((sum, [, count]) => sum + count, 0)
   return (
     <div className="page">

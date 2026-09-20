@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, BookOpen } from 'lucide-react'
+import { indexBooks } from '../utils/reading'
 import { useLibrary } from '../context/library'
 import { BookCover } from '../components/BookCover'
 import { RecordDetails } from '../components/RecordDetails'
 import type { ReadingRecord } from '../types'
 export function Reading() {
   const { books, records } = useLibrary()
+  const booksById = useMemo(() => indexBooks(books), [books])
   const reading = useMemo(
     () => records.filter((r) => r.status === 'READING').sort((a, b) => +a.createdAt - +b.createdAt),
     [records],
@@ -64,11 +66,11 @@ export function Reading() {
                   distance = d
                 }
               })
-              setIndex(nearest)
+              setIndex((current) => (current === nearest ? current : nearest))
             }}
           >
             {reading.map((record, i) => {
-              const book = books.find((b) => b.id === record.bookId)
+              const book = booksById.get(record.bookId)
               return book ? (
                 <button
                   className={`reading-card ${i === activeIndex ? 'is-current' : ''} ${state?.newId === record.id ? 'reading-enter' : ''}`}

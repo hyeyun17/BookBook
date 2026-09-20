@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Search, LibraryBig } from 'lucide-react'
+import { indexBooks } from '../utils/reading'
 import { useLibrary } from '../context/library'
 import { BookCover } from '../components/BookCover'
 import { Rating } from '../components/Rating'
@@ -10,26 +11,28 @@ export function Library() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('newest')
   const [selected, setSelected] = useState<ReadingRecord | null>(null)
-  const completed = records.filter((r) => r.status === 'COMPLETED')
-  const filtered = completed
-    .filter((r) => {
-      const b = books.find((b) => b.id === r.bookId)
-      return (
-        b &&
-        `${b.title} ${b.authors.join(' ')}`
-          .toLocaleLowerCase()
-          .includes(query.trim().toLocaleLowerCase())
+  const booksById = useMemo(() => indexBooks(books), [books])
+  const completed = useMemo(() => records.filter((r) => r.status === 'COMPLETED'), [records])
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase()
+    return completed
+      .filter((r) => {
+        const book = booksById.get(r.bookId)
+        return (
+          book !== undefined &&
+          `${book.title} ${book.authors.join(' ')}`.toLocaleLowerCase().includes(normalizedQuery)
+        )
+      })
+      .sort((a, b) =>
+        sort === 'oldest'
+          ? +a.finishedAt! - +b.finishedAt!
+          : sort === 'highest'
+            ? (b.rating || 0) - (a.rating || 0)
+            : sort === 'lowest'
+              ? (a.rating || 0) - (b.rating || 0)
+              : +b.finishedAt! - +a.finishedAt!,
       )
-    })
-    .sort((a, b) =>
-      sort === 'oldest'
-        ? +a.finishedAt! - +b.finishedAt!
-        : sort === 'highest'
-          ? (b.rating || 0) - (a.rating || 0)
-          : sort === 'lowest'
-            ? (a.rating || 0) - (b.rating || 0)
-            : +b.finishedAt! - +a.finishedAt!,
-    )
+  }, [booksById, completed, query, sort])
   return (
     <div className="page">
       <div className="page-heading">
@@ -58,7 +61,7 @@ export function Library() {
       </div>
       <div className="library-grid">
         {filtered.map((record) => {
-          const book = books.find((b) => b.id === record.bookId)!
+          const book = booksById.get(record.bookId)!
           return (
             <button className="library-book" key={record.id} onClick={() => setSelected(record)}>
               <BookCover book={book} />

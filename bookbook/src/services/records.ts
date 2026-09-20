@@ -33,7 +33,13 @@ export function readLocal(): LibraryData {
   }
 }
 export function writeLocal(data: LibraryData) {
-  localStorage.setItem(localKey, JSON.stringify(data))
+  try {
+    localStorage.setItem(localKey, JSON.stringify(data))
+  } catch {
+    throw new Error(
+      '\ube0c\ub77c\uc6b0\uc800 \uc800\uc7a5\uc18c\uc5d0 \uae30\ub85d\uc744 \uc800\uc7a5\ud558\uc9c0 \ubabb\ud588\uc5b4\uc694.',
+    )
+  }
 }
 export function subscribeLibrary(
   uid: string,
