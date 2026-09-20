@@ -7,6 +7,7 @@ export interface LibraryContextValue extends LibraryData {
   preview: boolean
   startPreview: () => void
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<void>
   startReading: (book: Book) => Promise<ReadingRecord>
   stopReading: (record: ReadingRecord) => Promise<void>
   deleteRecord: (record: ReadingRecord) => Promise<void>

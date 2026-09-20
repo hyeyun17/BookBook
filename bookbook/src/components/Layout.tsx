@@ -36,7 +36,9 @@ export function Layout() {
         </div>
       )}
       <main id="main-content">
-        <Outlet />
+        <div className="page-transition" key={pathname}>
+          <Outlet />
+        </div>
       </main>
       <footer className="site-footer">
         <span>한 권씩, 나만의 속도로.</span>

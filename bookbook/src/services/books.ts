@@ -1,4 +1,4 @@
-import type { Book } from '../types'
+﻿import type { Book } from '../types'
 
 export interface Yes24Book {
   isbn10?: string
@@ -25,6 +25,11 @@ export function normalizeBook(raw: Yes24Book): Book {
   const authors = raw.author?.split(/[,;|]/).map((author) => author.trim()).filter(Boolean)
   const validPages = typeof raw.pages === 'number' && Number.isFinite(raw.pages) && raw.pages > 0
   const category = raw.categoryName || raw.category || raw.categoryPath || raw.goodsSortNm
+  const genre =
+    typeof category === 'string'
+      ? category.split(/\s*[-|>]\s*/).map((value) => value.trim()).filter(Boolean).at(-1) ||
+        FALLBACK_GENRE
+      : FALLBACK_GENRE
   return {
     id: isbn || String(raw.itemId || encodeURIComponent(`${title}-${raw.author || ''}`)),
     isbn,
@@ -33,7 +38,7 @@ export function normalizeBook(raw: Yes24Book): Book {
     publisher: raw.publisher?.trim() || 'Unknown publisher',
     thumbnail: raw.cover?.replace(/^http:/, 'https:') || '',
     pageCount: validPages ? raw.pages! : FALLBACK_PAGE_COUNT,
-    genre: category?.trim() || FALLBACK_GENRE,
+    genre,
   }
 }
 export async function searchBooks(query: string, page: number, signal?: AbortSignal): Promise<{ books: Book[]; hasMore: boolean }> {
@@ -83,4 +88,27 @@ export async function enrichBook(book: Book): Promise<Book & { usedFallback: boo
   if (!metadata) { metadata = fetchMetadata(isbn); metadataCache.set(isbn, metadata) }
   return { ...book, ...(await metadata) }
 }
-\r\n
+
+const recommendationCache = new Map<string, { expiresAt: number; books: Book[] }>()
+export async function getRecommendations(genre: string, signal?: AbortSignal): Promise<Book[]> {
+  const normalized = genre.trim()
+  if (!normalized) return []
+  const cached = recommendationCache.get(normalized)
+  if (cached && cached.expiresAt > Date.now()) return cached.books
+  const storageKey = `bookbook-recommendations-v2-${normalized}`
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(storageKey) || 'null') as { expiresAt?: number; books?: Book[] } | null
+    if (stored?.expiresAt && stored.expiresAt > Date.now() && Array.isArray(stored.books)) {
+      recommendationCache.set(normalized, { expiresAt: stored.expiresAt, books: stored.books })
+      return stored.books
+    }
+  } catch { /* storage is optional */ }
+  const response = await fetch(`/api/books?recommend=${encodeURIComponent(normalized)}`, { signal })
+  if (!response.ok) return []
+  const data = (await response.json()) as { books?: Book[] }
+  const books = Array.isArray(data.books) ? data.books : []
+  const expiresAt = Date.now() + 60 * 60 * 1000
+  recommendationCache.set(normalized, { expiresAt, books })
+  try { sessionStorage.setItem(storageKey, JSON.stringify({ expiresAt, books })) } catch { /* storage is optional */ }
+  return books
+}

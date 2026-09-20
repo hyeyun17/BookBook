@@ -1,5 +1,5 @@
 ﻿import type { IncomingMessage, ServerResponse } from 'node:http'
-import { bookDetail, bookSearch } from '../server/book-search.js'
+import { bookDetail, bookRecommendations, bookSearch } from '../server/book-search.js'
 
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
   response.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -12,9 +12,11 @@ export default async function handler(request: IncomingMessage, response: Server
 
   try {
     const url = new URL(request.url || '/', 'http://localhost')
-    const result = url.searchParams.has('isbn')
-      ? await bookDetail(url.searchParams.get('isbn'), process.env.YES24_API_KEY)
-      : await bookSearch(
+    const result = url.searchParams.has('recommend')
+      ? await bookRecommendations(url.searchParams.get('recommend'), process.env.YES24_API_KEY)
+      : url.searchParams.has('isbn')
+        ? await bookDetail(url.searchParams.get('isbn'), process.env.YES24_API_KEY)
+        : await bookSearch(
           url.searchParams.get('query'),
           url.searchParams.get('page'),
           process.env.YES24_API_KEY,

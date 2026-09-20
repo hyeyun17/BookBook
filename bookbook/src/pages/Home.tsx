@@ -3,8 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Plus, BookOpen } from 'lucide-react'
 import { useLibrary } from '../context/library'
 import { currentYear, completedIn, indexBooks } from '../utils/reading'
+import { getRecommendations } from '../services/books'
+import type { Book } from '../types'
 import { YearSelector } from '../components/YearSelector'
 import { Bookshelf } from '../components/Bookshelf'
+import { BookCover } from '../components/BookCover'
+import { OnboardingGuide } from '../components/OnboardingGuide'
 import { RecordDetails } from '../components/RecordDetails'
 import type { ReadingRecord } from '../types'
 const readingNotes = [
@@ -36,6 +40,8 @@ export function Home() {
   const [arrival] = useState<{ newId?: string; year?: number }>(location.state || {})
   const [year, setYear] = useState(arrival.year || currentYear())
   const [selected, setSelected] = useState<ReadingRecord | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(`bookbook-onboarding-v1-${user?.uid || 'guest'}`))
+  const [recommendations, setRecommendations] = useState<Book[]>([])
   const [readingNote] = useState(
     () => readingNotes[Math.floor(Math.random() * readingNotes.length)],
   )
@@ -52,6 +58,25 @@ export function Home() {
   )
   const shelfRecords = completed
   const reading = useMemo(() => records.filter((r) => r.status === 'READING'), [records])
+  const favoriteGenre = useMemo(() => {
+    const counts = new Map<string, { count: number; latest: number }>()
+    for (const record of records) {
+      if (record.status !== 'COMPLETED') continue
+      const genre = booksById.get(record.bookId)?.genre
+      if (!genre || genre === '미분류') continue
+      const current = counts.get(genre) || { count: 0, latest: 0 }
+      counts.set(genre, { count: current.count + 1, latest: Math.max(current.latest, +(record.finishedAt || 0)) })
+    }
+    return [...counts.entries()].sort((a, b) => b[1].count - a[1].count || b[1].latest - a[1].latest)[0]?.[0] || ''
+  }, [booksById, records])
+  const finishedIsbns = useMemo(() => new Set(records.map((record) => booksById.get(record.bookId)?.isbn).filter(Boolean)), [booksById, records])
+  useEffect(() => {
+    if (!favoriteGenre) { setRecommendations([]); return }
+    const controller = new AbortController()
+    getRecommendations(favoriteGenre, controller.signal).then(setRecommendations).catch(() => setRecommendations([]))
+    return () => controller.abort()
+  }, [favoriteGenre])
+  const visibleRecommendations = recommendations.filter((book) => !book.isbn || !finishedIsbns.has(book.isbn)).slice(0, 3)
   return (
     <div className="page home-page">
       <section className="page-heading">
@@ -118,7 +143,37 @@ export function Home() {
             </Link>
           )}
         </div>
-        <div className="reading-note">
+
+      </section>
+      {favoriteGenre && (
+        <section className="recommendation-section">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">PERSONAL PICKS</span>
+              <h2>많이 읽은 장르에서 골라봤어요</h2>
+            </div>
+            <span>{favoriteGenre}</span>
+          </div>
+          {visibleRecommendations.length ? (
+            <div className="recommendation-grid">
+            {visibleRecommendations.map((book) => (
+              <article className="recommendation-card" key={book.id}>
+                <BookCover book={book} />
+                <div>
+                  <strong>{book.title}</strong>
+                  <p>{book.authors.join(', ')}</p>
+                  <small>{book.publisher}</small>
+                </div>
+              </article>
+            ))}
+            </div>
+          ) : (
+            <p className="recommendation-empty">이 장르의 추천 도서를 불러오는 중이거나 준비된 책이 없어요.</p>
+          )}
+        </section>
+      )}
+      <section className="reading-note standalone-note">
+
           <span className="eyebrow">A SMALL NOTE</span>
           <p>
             {readingNote.split('\n').map((line, index) => (
@@ -129,8 +184,8 @@ export function Home() {
             ))}
           </p>
           <small>{user?.displayName}님의 다음 한 권을 기다리며</small>
-        </div>
       </section>
+      {showOnboarding && <OnboardingGuide onDone={() => { localStorage.setItem(`bookbook-onboarding-v1-${user?.uid || 'guest'}`, 'done'); setShowOnboarding(false) }} />}
       {selected && (
         <RecordDetails
           record={records.find((r) => r.id === selected.id) || selected}

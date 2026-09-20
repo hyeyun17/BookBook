@@ -37,10 +37,14 @@ export function statistics(records: ReadingRecord[], books: Book[], year: number
   const genres: Record<string, number> = {}
   const booksById = indexBooks(books)
   let pages = 0
+  let readingDays = 0
   for (const record of completed) {
     const book = booksById.get(record.bookId)
     pages += book?.pageCount ?? 300
     months[record.finishedAt!.getMonth()]++
+    if (record.startedAt && record.finishedAt) {
+      readingDays += Math.max(1, Math.ceil((+record.finishedAt - +record.startedAt) / 86400000) + 1)
+    }
     if (book?.genre && book.genre !== '미분류') genres[book.genre] = (genres[book.genre] ?? 0) + 1
   }
   const rated = completed.filter((r) => r.rating)
@@ -48,6 +52,7 @@ export function statistics(records: ReadingRecord[], books: Book[], year: number
     count: completed.length,
     pages,
     average: rated.length ? rated.reduce((sum, r) => sum + r.rating!, 0) / rated.length : 0,
+    averagePagesPerDay: readingDays ? pages / readingDays : 0,
     months,
     genres: Object.entries(genres).sort((a, b) => b[1] - a[1]),
   }
