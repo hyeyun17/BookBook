@@ -123,4 +123,3 @@ export async function bookDetail(isbn: unknown, key?: string) {
     return { status: status === 429 ? 429 : 502, body: { error: 'Book detail unavailable' } }
   }
 }
-\r\n

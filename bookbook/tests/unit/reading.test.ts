@@ -21,4 +21,3 @@ describe('YES24 API boundaries', () => {
   it('normalizes YES24 fields and defaults', () => { expect(normalizeBook({ isbn13: '9788937460449', title: 'Test', author: 'Author 1, Author 2', pages: 420, categoryName: 'Fiction' })).toMatchObject({ id: '9788937460449', pageCount: 420, genre: 'Fiction', authors: ['Author 1', 'Author 2'] }); expect(normalizeBook({ title: 'No ISBN' })).toMatchObject({ pageCount: 300, genre: '\uBBF8\uBD84\uB958' }) })
   it('validates server requests and preserves rate limits', async () => { expect((await bookSearch('', 1, 'key')).status).toBe(400); expect((await bookSearch('book', 51, 'key')).status).toBe(400); expect((await bookSearch('book', 1)).status).toBe(503); vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 })); expect((await bookSearch('book', 1, 'secret')).status).toBe(429) })
 })
-\r\n

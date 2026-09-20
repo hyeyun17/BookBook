@@ -83,4 +83,3 @@ export async function enrichBook(book: Book): Promise<Book & { usedFallback: boo
   if (!metadata) { metadata = fetchMetadata(isbn); metadataCache.set(isbn, metadata) }
   return { ...book, ...(await metadata) }
 }
-\r\n
