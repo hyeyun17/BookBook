@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+﻿import { useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { enrichBook } from '../services/books'
 import { auth, logout } from '../services/firebase'
@@ -16,7 +16,7 @@ import type { LibraryData, User } from '../types'
 import { LibraryContext } from './library'
 import { validateCompletion } from '../utils/reading'
 
-const previewUser: User = { uid: 'local-preview', displayName: '독서가', email: '' }
+const previewUser: User = { uid: 'local-preview', displayName: '?낆꽌媛', email: '' }
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const [preview, setPreview] = useState(
     !auth && sessionStorage.getItem('bookbook-preview') === 'true',
@@ -37,7 +37,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           next
             ? {
                 uid: next.uid,
-                displayName: next.displayName || '독서가',
+                displayName: next.displayName || '?낆꽌媛',
                 email: next.email || '',
                 ...(next.photoURL ? { photoURL: next.photoURL } : {}),
               }
@@ -45,7 +45,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         )
       },
       () => {
-        setError('로그인 상태를 확인하지 못했어요. 새로고침해 주세요.')
+        setError('濡쒓렇???곹깭瑜??뺤씤?섏? 紐삵뻽?댁슂. ?덈줈怨좎묠??二쇱꽭??')
         setLoading(false)
       },
     )
@@ -60,7 +60,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setError('')
       },
       () => {
-        setError('기록을 불러오지 못했어요. 네트워크와 저장소 연결을 확인한 뒤 새로고침해 주세요.')
+        setError('湲곕줉??遺덈윭?ㅼ? 紐삵뻽?댁슂. ?ㅽ듃?뚰겕? ??μ냼 ?곌껐???뺤씤?????덈줈怨좎묠??二쇱꽭??')
         setLoading(false)
       },
     )
@@ -91,7 +91,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           setData(emptyLibrary)
         },
         startReading: async (book) => {
-          if (!user) throw new Error('로그인이 필요해요.')
+          if (!user) throw new Error('濡쒓렇?몄씠 ?꾩슂?댁슂.')
           const record = newRecord(book, user.uid)
           if (preview)
             localUpdate({
@@ -109,7 +109,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         },
         stopReading: async (record) => {
           if (!user || record.userId !== user.uid || record.status !== 'READING')
-            throw new Error('이 기록을 제거할 수 없어요.')
+            throw new Error('??湲곕줉???쒓굅?????놁뼱??')
           if (preview) {
             localUpdate({ ...data, records: data.records.filter((r) => r.id !== record.id) })
           } else {
@@ -139,7 +139,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           const invalid = validateCompletion(values.startedAt, values.finishedAt, values.rating)
           if (invalid) throw new Error(invalid)
           const book = data.books.find((b) => b.id === record.bookId)
-          if (!book) throw new Error('책 정보를 찾을 수 없어요.')
+          if (!book) throw new Error('梨??뺣낫瑜?李얠쓣 ???놁뼱??')
           const { usedFallback, ...enriched } = await enrichBook(book)
           const updated = {
             ...record,
@@ -164,7 +164,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           }
           if (import.meta.env.DEV) {
             const { title, isbn, pageCount } = enriched
-            console.info('[BookBook] 책 페이지 수', { title, isbn, pageCount, usedFallback })
+            console.info("[BookBook] 책 페이지 수", { title, isbn, pageCount, usedFallback })
           }
         },
       }}
