@@ -44,7 +44,9 @@ function isbnOf(item: Yes24Item) {
 }
 function genreOf(item: Yes24Item) {
   const value = item.categoryName || item.category || item.categoryPath || item.goodsSortNm
-  return typeof value === 'string' && value.trim() ? value.trim() : FALLBACK_GENRE
+  if (typeof value !== 'string' || !value.trim()) return FALLBACK_GENRE
+  const categories = value.split(/\s*[-|>]\s*/).map((category) => category.trim()).filter(Boolean)
+  return categories.at(-1) || FALLBACK_GENRE
 }
 export function normalizeYes24Book(item: Yes24Item): Book {
   const isbn = isbnOf(item)

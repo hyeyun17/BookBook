@@ -25,6 +25,11 @@ export function normalizeBook(raw: Yes24Book): Book {
   const authors = raw.author?.split(/[,;|]/).map((author) => author.trim()).filter(Boolean)
   const validPages = typeof raw.pages === 'number' && Number.isFinite(raw.pages) && raw.pages > 0
   const category = raw.categoryName || raw.category || raw.categoryPath || raw.goodsSortNm
+  const genre =
+    typeof category === 'string'
+      ? category.split(/\s*[-|>]\s*/).map((value) => value.trim()).filter(Boolean).at(-1) ||
+        FALLBACK_GENRE
+      : FALLBACK_GENRE
   return {
     id: isbn || String(raw.itemId || encodeURIComponent(`${title}-${raw.author || ''}`)),
     isbn,
@@ -33,7 +38,7 @@ export function normalizeBook(raw: Yes24Book): Book {
     publisher: raw.publisher?.trim() || 'Unknown publisher',
     thumbnail: raw.cover?.replace(/^http:/, 'https:') || '',
     pageCount: validPages ? raw.pages! : FALLBACK_PAGE_COUNT,
-    genre: category?.trim() || FALLBACK_GENRE,
+    genre,
   }
 }
 export async function searchBooks(query: string, page: number, signal?: AbortSignal): Promise<{ books: Book[]; hasMore: boolean }> {
