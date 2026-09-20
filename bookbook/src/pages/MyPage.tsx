@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react'
-import { LogOut, BookOpen, Files, Star, ArrowUpRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, BookOpen, Files, Star, ArrowUpRight, Gauge, Settings, UserRound, Trash2 } from 'lucide-react'
 import { useLibrary } from '../context/library'
 import { currentYear, statistics } from '../utils/reading'
 import { YearSelector } from '../components/YearSelector'
+import { Modal } from '../components/Modal'
 export function MyPage() {
-  const { records, books, user, signOut, preview } = useLibrary()
+  const { records, books, user, signOut, deleteAccount } = useLibrary()
+  const navigate = useNavigate()
   const [year, setYear] = useState(currentYear())
   const [error, setError] = useState('')
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [withdrawConfirm, setWithdrawConfirm] = useState(false)
+  const [accountBusy, setAccountBusy] = useState(false)
   const stats = useMemo(() => statistics(records, books, year), [books, records, year])
   const genreTotal = stats.genres.reduce((sum, [, count]) => sum + count, 0)
   return (
@@ -17,24 +23,35 @@ export function MyPage() {
           <h1>책으로 들여다본 나.</h1>
           <p>{user?.displayName}님의 읽는 시간들을 모았어요.</p>
         </div>
-        <button
-          className="text-button logout-button"
-          onClick={async () => {
-            try {
-              await signOut()
-            } catch {
-              setError('로그아웃하지 못했어요. 다시 시도해 주세요.')
-            }
-          }}
-        >
-          <LogOut size={16} />
-          {preview ? '미리보기 종료' : '로그아웃'}
+        <button className="text-button account-button" onClick={() => setAccountOpen(true)}>
+          <Settings size={16} /> 계정 설정
         </button>
       </div>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
+      )}
+      {accountOpen && (
+        <Modal title="계정 설정" onClose={() => { setAccountOpen(false); setWithdrawConfirm(false) }}>
+          <div className="account-modal-heading"><UserRound size={20} /><div><h2>계정 설정</h2><p>{user?.displayName}</p></div></div>
+          <div className="profile-info">
+            <span className="account-section-label">프로필 정보</span>
+            <dl><div><dt>이름</dt><dd>{user?.displayName || '미설정'}</dd></div><div><dt>이메일</dt><dd>{user?.email || '미리보기 계정'}</dd></div></dl>
+          </div>
+          <details className="usage-guide">
+            <summary>이용 안내</summary>
+            <ol><li>검색에서 책을 찾아 <b>책 읽기</b>를 눌러 서재에 추가해요.</li><li>다 읽은 뒤 책을 선택하고 날짜와 별점을 기록해요.</li><li>홈과 마이페이지에서 독서 통계와 추천 도서를 확인할 수 있어요.</li></ol>
+            <button className="text-button guide-replay-button" onClick={() => { localStorage.removeItem(`bookbook-onboarding-v1-${user?.uid || 'guest'}`); setAccountOpen(false); navigate('/') }}>팝업 안내 다시 보기</button>
+          </details>
+          {!withdrawConfirm ? <div className="account-actions">
+            <button className="secondary-button" onClick={async () => { setAccountBusy(true); try { await signOut() } catch { setError('로그아웃하지 못했어요. 다시 시도해 주세요.') } finally { setAccountBusy(false) } }} disabled={accountBusy}><LogOut size={16} /> 로그아웃하기</button>
+            <button className="text-button account-danger" onClick={() => setWithdrawConfirm(true)}><Trash2 size={15} /> 회원 탈퇴하기</button>
+          </div> : <div className="withdraw-confirm">
+            <h3>정말 탈퇴할까요?</h3><p>저장된 독서 기록과 계정을 다시 복구할 수 없어요.</p>
+            <div><button className="text-button" onClick={() => setWithdrawConfirm(false)}>돌아가기</button><button className="danger-button" onClick={async () => { setAccountBusy(true); try { await deleteAccount() } catch { setError('최근 로그인 후 다시 시도해 주세요.') } finally { setAccountBusy(false) } }} disabled={accountBusy}>탈퇴하기</button></div>
+          </div>}
+        </Modal>
       )}
       <div className="stats-toolbar">
         <YearSelector year={year} onChange={setYear} />
@@ -65,6 +82,7 @@ export function MyPage() {
             <small>/ 5</small>
           </strong>
         </div>
+        <div><Gauge size={19} /><span>하루 평균 독서량</span><strong>{stats.averagePagesPerDay ? Math.round(stats.averagePagesPerDay).toLocaleString() : '0'}<small>쪽/일</small></strong></div>
       </div>
       <section className="chart-section">
         <div className="section-heading">
@@ -111,28 +129,11 @@ export function MyPage() {
           </p>
           <ArrowUpRight size={22} />
         </div>
-        <div className="genre-bars">
-          {stats.genres.length ? (
-            stats.genres.map(([genre, count]) => (
-              <div className="genre-row" key={genre}>
-                <div>
-                  <span>{genre}</span>
-                  <small>
-                    {count}권 · {Math.round((count / genreTotal) * 100)}%
-                  </small>
-                </div>
-                <div className="genre-track">
-                  <i style={{ width: `${(count / genreTotal) * 100}%` }} />
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="muted">
-              장르 정보가 있는 책을 완독하면
-              <br />
-              이곳에 장르별 비율이 표시돼요.
-            </p>
-          )}
+        <div className="genre-donut-wrap">
+          {stats.genres.length ? <>
+            <div className="genre-donut" style={{ background: 'conic-gradient(' + stats.genres.map(([, count], index) => { const begin = stats.genres.slice(0, index).reduce((sum, [, value]) => sum + value, 0); const colors = ['#35463b', '#8b9984', '#b6a58b', '#9b907d', '#c7bfb0']; return colors[index % colors.length] + ' ' + begin / genreTotal * 100 + '% ' + (begin + count) / genreTotal * 100 + '%' }).join(', ') + ')' }}><div className="genre-donut-center"><strong>{stats.genres[0][0]}</strong></div></div>
+            <div className="genre-legend">{stats.genres.map(([genre, count], index) => <div className="genre-legend-row" key={genre}><span className="genre-swatch" style={{ background: ['#35463b', '#8b9984', '#b6a58b', '#9b907d', '#c7bfb0'][index % 5] }} /><span>{genre}</span><small>{Math.round(count / genreTotal * 100)}%</small></div>)}</div>
+          </> : <p className="muted">완독한 책이 쌓이면 장르별 비율을 보여드려요.</p>}
           <small className="muted">장르 정보가 없는 책은 비율에서 제외됩니다.</small>
         </div>
       </section>

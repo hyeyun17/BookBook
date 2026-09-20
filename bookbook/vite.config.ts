@@ -1,7 +1,7 @@
 ﻿import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-import { bookDetail, bookSearch } from './server/book-search.js'
+import { bookDetail, bookRecommendations, bookSearch } from './server/book-search.js'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -32,9 +32,11 @@ export default defineConfig(({ mode }) => {
               return
             }
             const url = new URL(request.url || '/', 'http://localhost')
-            const result = url.searchParams.has('isbn')
-              ? await bookDetail(url.searchParams.get('isbn'), env.YES24_API_KEY)
-              : await bookSearch(
+            const result = url.searchParams.has('recommend')
+              ? await bookRecommendations(url.searchParams.get('recommend'), env.YES24_API_KEY)
+              : url.searchParams.has('isbn')
+                ? await bookDetail(url.searchParams.get('isbn'), env.YES24_API_KEY)
+                : await bookSearch(
                   url.searchParams.get('query'),
                   url.searchParams.get('page'),
                   env.YES24_API_KEY,

@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState, type ReactNode } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { enrichBook } from '../services/books'
-import { auth, logout } from '../services/firebase'
+import { auth, deleteAccount as deleteFirebaseAccount, logout } from '../services/firebase'
 import {
   emptyLibrary,
   newRecord,
@@ -89,6 +89,19 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           setPreview(false)
           setUser(null)
           setData(emptyLibrary)
+        },
+        deleteAccount: async () => {
+          if (preview) {
+            localStorage.removeItem('bookbook-preview-v1')
+            sessionStorage.removeItem('bookbook-preview')
+            setPreview(false)
+            setUser(null)
+            setData(emptyLibrary)
+            return
+          }
+          await deleteFirebaseAccount()
+          setData(emptyLibrary)
+          setUser(null)
         },
         startReading: async (book) => {
           if (!user) throw new Error('濡쒓렇?몄씠 ?꾩슂?댁슂.')

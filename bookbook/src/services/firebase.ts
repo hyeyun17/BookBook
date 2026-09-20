@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
+import { deleteUser, getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const config = {
@@ -18,4 +18,9 @@ export async function loginWithGoogle() {
 }
 export async function logout() {
   if (auth) await signOut(auth)
+}
+
+export async function deleteAccount() {
+  if (!auth?.currentUser) throw new Error('로그인 상태를 확인해 주세요.')
+  await deleteUser(auth.currentUser)
 }

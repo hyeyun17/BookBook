@@ -140,12 +140,29 @@ export function Search() {
       {!loading && !error && !books.length && (
         <div className="empty-state">
           <BookOpen size={36} strokeWidth={1} />
-          <h2>{submitted ? '아직 찾지 못했어요' : '새로운 이야기가 기다리고 있어요'}</h2>
-          <p>
-            {submitted
-              ? '다른 제목이나 저자로 검색해 보세요.'
-              : '기억에 남은 제목, 좋아하는 작가부터 시작해 볼까요?'}
-          </p>
+          <h2>{submitted ? '아직 찾지 못했어요' : '검색어를 이렇게 입력해 보세요'}</h2>
+          {submitted ? (
+            <p>다른 제목이나 저자로 검색해 보세요.</p>
+          ) : (
+            <div className="search-examples" aria-label="검색 예시">
+              <span>
+                <small>제목</small>
+                데미안
+              </span>
+              <span>
+                <small>제목 + 출판사</small>
+                데미안 민음사
+              </span>
+              <span>
+                <small>출판사</small>
+                민음사
+              </span>
+              <span>
+                <small>작가</small>
+                헤르만 헤세
+              </span>
+            </div>
+          )}
         </div>
       )}
       {hasMore && !loading && !error && (
