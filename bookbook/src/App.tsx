@@ -1,14 +1,15 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes, Link } from 'react-router-dom'
 import { LibraryProvider } from './context/LibraryContext'
 import { useLibrary } from './context/library'
 import { Layout } from './components/Layout'
-import { Home } from './pages/Home'
-import { Reading } from './pages/Reading'
-import { Library } from './pages/Library'
-import { MyPage } from './pages/MyPage'
-import { Search } from './pages/Search'
-import { Complete } from './pages/Complete'
-import { Login } from './pages/Login'
+const Home = lazy(() => import('./pages/Home').then((module) => ({ default: module.Home })))
+const Reading = lazy(() => import('./pages/Reading').then((module) => ({ default: module.Reading })))
+const Library = lazy(() => import('./pages/Library').then((module) => ({ default: module.Library })))
+const MyPage = lazy(() => import('./pages/MyPage').then((module) => ({ default: module.MyPage })))
+const Search = lazy(() => import('./pages/Search').then((module) => ({ default: module.Search })))
+const Complete = lazy(() => import('./pages/Complete').then((module) => ({ default: module.Complete })))
+const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })))
 import { PwaStatus } from './components/PwaStatus'
 import { ScrollReset } from './components/ScrollReset'
 function AppRoutes() {
@@ -32,7 +33,8 @@ function AppRoutes() {
       </>
     )
   return (
-    <Routes>
+    <Suspense fallback={<div className="app-loading" role="status"><span className="wordmark">bookbook.</span></div>}>
+      <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="reading" element={<Reading />} />
@@ -52,7 +54,8 @@ function AppRoutes() {
           }
         />
       </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
   )
 }
 export default function App() {

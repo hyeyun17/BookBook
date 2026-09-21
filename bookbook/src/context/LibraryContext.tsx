@@ -10,6 +10,7 @@ import {
   saveCompletion,
   saveNew,
   subscribeLibrary,
+  deleteUserData,
   writeLocal,
 } from '../services/records'
 import type { LibraryData, User } from '../types'
@@ -99,6 +100,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
             setData(emptyLibrary)
             return
           }
+          if (!user) throw new Error('로그인 상태를 확인해 주세요.')
+          await deleteUserData(user.uid)
           await deleteFirebaseAccount()
           setData(emptyLibrary)
           setUser(null)
