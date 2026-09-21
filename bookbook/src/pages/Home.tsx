@@ -42,6 +42,8 @@ export function Home() {
   const [selected, setSelected] = useState<ReadingRecord | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem(`bookbook-onboarding-v1-${user?.uid || 'guest'}`))
   const [recommendations, setRecommendations] = useState<Book[]>([])
+  const [recommendationLoading, setRecommendationLoading] = useState(false)
+  const [recommendationError, setRecommendationError] = useState(false)
   const [readingNote] = useState(
     () => readingNotes[Math.floor(Math.random() * readingNotes.length)],
   )
@@ -71,9 +73,14 @@ export function Home() {
   }, [booksById, records])
   const finishedIsbns = useMemo(() => new Set(records.map((record) => booksById.get(record.bookId)?.isbn).filter(Boolean)), [booksById, records])
   useEffect(() => {
-    if (!favoriteGenre) { setRecommendations([]); return }
+    if (!favoriteGenre) { setRecommendations([]); setRecommendationLoading(false); return }
     const controller = new AbortController()
-    getRecommendations(favoriteGenre, controller.signal).then(setRecommendations).catch(() => setRecommendations([]))
+    setRecommendationLoading(true)
+    setRecommendationError(false)
+    getRecommendations(favoriteGenre, controller.signal)
+      .then(setRecommendations)
+      .catch(() => { if (!controller.signal.aborted) { setRecommendations([]); setRecommendationError(true) } })
+      .finally(() => { if (!controller.signal.aborted) setRecommendationLoading(false) })
     return () => controller.abort()
   }, [favoriteGenre])
   const visibleRecommendations = recommendations.filter((book) => !book.isbn || !finishedIsbns.has(book.isbn)).slice(0, 3)
@@ -168,7 +175,9 @@ export function Home() {
             ))}
             </div>
           ) : (
-            <p className="recommendation-empty">이 장르의 추천 도서를 불러오는 중이거나 준비된 책이 없어요.</p>
+            <p className="recommendation-empty" role="status" aria-live="polite">
+              {recommendationLoading ? '추천 도서를 불러오고 있어요.' : recommendationError ? '추천 도서를 잠시 불러오지 못했어요. 잠시 후 다시 확인해 주세요.' : '이 장르에 준비된 추천 도서가 없어요.'}
+            </p>
           )}
         </section>
       )}
