@@ -6,6 +6,7 @@ import {
   writeBatch,
   updateDoc,
   deleteDoc,
+  getDocs,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type { Book, Completion, LibraryData, ReadingRecord } from '../types'
@@ -136,4 +137,20 @@ export async function removeReading(record: ReadingRecord) {
   if (!db) throw new Error('Firebase 연결 설정이 필요합니다.')
   if (!navigator.onLine) throw new Error('인터넷 연결 후 다시 시도해 주세요.')
   await deleteDoc(doc(db, 'users', record.userId, 'records', record.id))
+}
+
+export async function deleteUserData(uid: string) {
+  if (!db) throw new Error('Firebase 연결 설정이 필요합니다.')
+  const paths = [collection(db, 'users', uid, 'books'), collection(db, 'users', uid, 'records')]
+  for (const path of paths) {
+    const snapshot = await getDocs(path)
+    let batch = writeBatch(db)
+    let count = 0
+    for (const item of snapshot.docs) {
+      batch.delete(item.ref)
+      count += 1
+      if (count === 450) { await batch.commit(); batch = writeBatch(db); count = 0 }
+    }
+    if (count) await batch.commit()
+  }
 }
