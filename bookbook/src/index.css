@@ -1,3 +1,24 @@
+﻿@font-face {
+  font-family: 'Arita Sans SC';
+  src: url('/fonts/AritaSansSC-Light.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arita Sans SC';
+  src: url('/fonts/AritaSansSC-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Arita Sans SC';
+  src: url('/fonts/AritaSansSC-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: 'Gowun Batang';
   src: url('/fonts/GowunBatang-Regular.woff') format('woff');
@@ -13,7 +34,8 @@
   font-display: swap;
 }
 :root {
-  --font-reading: 'Gowun Batang', 'Batang', serif;
+  --font-reading: 'Gowun Batang', 'Arita Sans SC', 'Batang', serif;
+  --font-ui: 'Arita Sans SC', sans-serif;
   --color-background: #f7f4ee;
   --color-text: #252420;
   --color-primary: #35463b;
