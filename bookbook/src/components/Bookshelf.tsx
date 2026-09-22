@@ -71,7 +71,7 @@ export function Bookshelf({
                         } as CSSProperties
                       }
                       onClick={() => onSelect(record)}
-                      aria-label={`${book.title}, ${record.rating}?? 湲곕줉 蹂닿린`}
+                      aria-label={`${book.title}, 독서 기록 보기`}
                     >
                       <span className="spine-mark">b.</span>
                       <strong>{book.title}</strong>
@@ -86,7 +86,7 @@ export function Bookshelf({
                       <i />
                       <i />
                     </div>
-                    <p>?뱀떊??泥?踰덉㎏ 梨낆쓣 湲곕떎由ш퀬 ?덉뼱??</p>
+                    <p>당신의 첫 번째 책을 기다리고 있어요.</p>
                     <span>???쎌? 梨낅뱾???닿납??李④끝李④끝 ?볦뿬??</span>
                   </div>
                 )}

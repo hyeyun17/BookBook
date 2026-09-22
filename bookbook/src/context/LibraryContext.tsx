@@ -46,7 +46,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         )
       },
       () => {
-        setError('濡쒓렇???곹깭瑜??뺤씤?섏? 紐삵뻽?댁슂. ?덈줈怨좎묠??二쇱꽭??')
+        setError('로그인 상태를 확인하지 못했어요. 새로고침 후 다시 시도해 주세요.')
         setLoading(false)
       },
     )
@@ -61,7 +61,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setError('')
       },
       () => {
-        setError('湲곕줉??遺덈윭?ㅼ? 紐삵뻽?댁슂. ?ㅽ듃?뚰겕? ??μ냼 ?곌껐???뺤씤?????덈줈怨좎묠??二쇱꽭??')
+        setError('기록을 불러오지 못했어요. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.')
         setLoading(false)
       },
     )
@@ -125,7 +125,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         },
         stopReading: async (record) => {
           if (!user || record.userId !== user.uid || record.status !== 'READING')
-            throw new Error('??湲곕줉???쒓굅?????놁뼱??')
+            throw new Error('삭제할 수 없는 기록이에요.')
           if (preview) {
             localUpdate({ ...data, records: data.records.filter((r) => r.id !== record.id) })
           } else {
@@ -155,7 +155,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           const invalid = validateCompletion(values.startedAt, values.finishedAt, values.rating)
           if (invalid) throw new Error(invalid)
           const book = data.books.find((b) => b.id === record.bookId)
-          if (!book) throw new Error('梨??뺣낫瑜?李얠쓣 ???놁뼱??')
+          if (!book) throw new Error('책 정보를 찾을 수 없어요.')
           const { usedFallback, ...enriched } = await enrichBook(book)
           const updated = {
             ...record,
